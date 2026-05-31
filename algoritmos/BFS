@@ -1,0 +1,131 @@
+"""
+BFS.py
+----------
+Solver de Sokoban usando BFS.
+"""
+
+from collections import deque
+from optimizacion.deadlocks import init_deadlocks, has_deadlock
+from optimizacion.hashing import StateHash
+
+# ── Variables globales del tablero ───────────────────────────
+nrows = ncols = 0
+px = py = 0
+sdata = ""
+ddata = ""
+
+
+def idx(x, y):
+    return y * ncols + x
+
+
+def init(board):
+    """Inicializa el tablero y los módulos de hashing/deadlocks."""
+    global nrows, ncols, sdata, ddata, px, py
+    sdata = ""
+    ddata = ""
+    data = list(filter(None, board.splitlines()))
+    ncols = max(len(r) for r in data)
+    nrows = len(data)
+
+    maps = {' ': ' ', '.': '.', '@': ' ', '#': '#', '$': ' '}
+    mapd = {' ': ' ', '.': ' ', '@': '@', '#': ' ', '$': '*'}
+
+    for r, row in enumerate(data):
+        for c, ch in enumerate(row):
+            sdata += maps[ch]
+            ddata += mapd[ch]
+            if ch == '@':
+                px, py = c, r
+
+    # Inicializar módulo de deadlocks con el mapa estático
+    init_deadlocks(sdata, nrows, ncols)
+
+
+def push(x, y, dx, dy, state):
+    if (sdata[idx(x + 2*dx, y + 2*dy)] == '#' or
+            state[idx(x + 2*dx, y + 2*dy)] != ' '):
+        return None
+    d2 = bytearray(state.encode())
+    d2[idx(x, y)] = ord(' ')
+    d2[idx(x + dx, y + dy)] = ord('@')
+    d2[idx(x + 2*dx, y + 2*dy)] = ord('*')
+    return d2.decode()
+
+
+def is_solved(state):
+    return all((sdata[i] == '.') == (state[i] == '*')
+               for i in range(len(state)))
+
+
+def solve():
+    """
+    BFS con hashing y detección de deadlocks.
+    Ambas técnicas vienen de módulos externos reutilizables.
+    """
+    visited = StateHash()        # <-- módulo hashing
+    visited.add(ddata)
+    queue = deque([(ddata, "", px, py)])
+    dirs = ((0, -1, 'u', 'U'), (1, 0, 'r', 'R'),
+            (0,  1, 'd', 'D'), (-1, 0, 'l', 'L'))
+
+    while queue:
+        cur, sol, x, y = queue.popleft()
+
+        for dx, dy, ml, mu in dirs:
+            t = cur
+
+            if t[idx(x + dx, y + dy)] == '*':
+                t = push(x, y, dx, dy, t)
+                if t and t not in visited:
+                    if has_deadlock(t):          # <-- módulo deadlocks
+                        visited.add(t)
+                        continue
+                    if is_solved(t):
+                        return sol + mu, len(visited)
+                    queue.append((t, sol + mu, x + dx, y + dy))
+                    visited.add(t)
+            else:
+                if (sdata[idx(x + dx, y + dy)] == '#' or
+                        t[idx(x + dx, y + dy)] != ' '):
+                    continue
+                d2 = bytearray(t.encode())
+                d2[idx(x, y)] = ord(' ')
+                d2[idx(x + dx, y + dy)] = ord('@')
+                t = d2.decode()
+                if t not in visited:
+                    if is_solved(t):
+                        return sol + ml, len(visited)
+                    queue.append((t, sol + ml, x + dx, y + dy))
+                    visited.add(t)
+
+    return "No solution", len(visited)
+
+
+# ── Ejemplo de uso ───────────────────────────────────────────
+if __name__ == "__main__":
+    import time
+
+    level = """\
+############
+#          #
+#  $       #
+#  $  ###  #
+## ## # .  #
+#  $  # .  #
+#     # .  #
+#    @#    #
+############"""
+
+    init(level)
+    print(level)
+    print()
+
+    t = time.time()
+    sol, estados = solve()
+    elapsed = round(time.time() - t, 2)
+
+    print(f"Solución:         {sol}")
+    print(f"Pasos:            {len(sol)}")
+    print(f"Estados visitados:{estados}")
+    print(f"Tiempo:           {elapsed}s")
