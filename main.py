@@ -17,22 +17,22 @@ from resultados.metricas import run, compare_all, print_result
 
 # ── Importar algoritmos disponibles ─────────────────────────
 from algoritmos.BFS import solve as bfs_solve
+from algoritmos.DFS import solve as dfs_solve
 
 # Cuando implementen los demás, descomentar:
-# from algorithms.dfs    import solve as dfs_solve
 # from algorithms.ucs    import solve as ucs_solve
 # from algorithms.astar  import solve as astar_solve
 
 # ── Registro de solvers disponibles ─────────────────────────
 SOLVERS = {
     "BFS": bfs_solve,
-    # "DFS":   dfs_solve,
+    "DFS": dfs_solve,
     # "UCS":   ucs_solve,
     # "A*":    astar_solve,
 }
 
 # ── Niveles disponibles ──────────────────────────────────────
-LEVELS_DIR = "levels"
+LEVELS_DIR = "niveles"
 LEVEL_FILES = [
     os.path.join(LEVELS_DIR, f"level{i}.txt") for i in range(1, 6)
 ]

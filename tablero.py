@@ -139,7 +139,7 @@ def print_board(state):
             if d == '@':
                 row += '+' if s == '.' else '@'
             elif d == '*':
-                row += '*'
+                row += '*' if s == '.' else '$'
             else:
                 row += s
         print(row)

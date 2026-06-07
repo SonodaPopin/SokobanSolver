@@ -6,14 +6,14 @@ Mide tiempo, estados explorados y pasos de solución,
 y los compara contra los resultados del paper (Tabla 1).
 
 Uso:
-    from results.metricas import run, compare_all, print_table
+    from resultados.metricas import run, compare_all, print_table
 
     result = run(solve_fn, level_path)
     compare_all(level_path)
 """
 
 import time
-import board
+import tablero
 
 # ── Resultados del paper (Tabla 1) ───────────────────────────
 # Formato: {nivel: {algoritmo: (tiempo_ms, estados, pasos)}}
@@ -70,7 +70,7 @@ def run(solve_fn, level, level_number=None):
         time_ms   : tiempo en milisegundos
         solved    : True/False
     """
-    board.init(level)
+    tablero.init(level)
 
     start = time.time()
     solution, states = solve_fn()
