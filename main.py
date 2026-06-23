@@ -39,8 +39,8 @@ if os.path.exists(_modelo_cnn_path):
     SOLVERS["CNN"] = cnn_solve
 
 LEVELS_DIR = "niveles"
-LEVEL_FILES = [os.path.join(LEVELS_DIR, f"level{i}.txt") for i in range(1, 6)]
-LEVEL_NUMBERS = list(range(1, 6))
+LEVEL_FILES = [os.path.join(LEVELS_DIR, f"level{i}.txt") for i in range(1, 26)]
+LEVEL_NUMBERS = list(range(1, 26))
 
 
 def run_single(level_path, level_number=None, save=False, timeout=30, verbose=False):

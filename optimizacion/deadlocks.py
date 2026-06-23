@@ -44,32 +44,37 @@ def _idx(x, y):
 
 def _compute_dead_squares():
     """
-    BFS inverso desde los objetivos para encontrar todas las
-    casillas donde una caja nunca puede llegar a un objetivo.
-    Estas casillas se precalculan una sola vez por nivel.
+    Detecta dead squares por esquinas:
+    una casilla es dead square si tiene pared en al menos un lado
+    horizontal (izq o der) Y al menos un lado vertical (arr o abajo),
+    y no es objetivo. Una caja en esa posicion no puede salir.
     """
     goals = {(x, y) for y in range(_nrows) for x in range(_ncols)
              if _sdata[_idx(x, y)] == '.'}
 
-    reachable = set(goals)
-    queue = deque(goals)
-    dirs = [(0, -1), (1, 0), (0, 1), (-1, 0)]
+    dead = set()
+    for y in range(_nrows):
+        for x in range(_ncols):
+            if _sdata[_idx(x, y)] == '#':
+                continue
+            if (x, y) in goals:
+                continue
 
-    while queue:
-        x, y = queue.popleft()
-        for dx, dy in dirs:
-            fx, fy = x - dx, y - dy   # de donde vendría la caja
-            jx, jy = x + dx, y + dy   # donde estaría el jugador
-            if (0 <= fx < _ncols and 0 <= fy < _nrows and
-                    0 <= jx < _ncols and 0 <= jy < _nrows and
-                    _sdata[_idx(fx, fy)] != '#' and
-                    _sdata[_idx(jx, jy)] != '#' and
-                    (fx, fy) not in reachable):
-                reachable.add((fx, fy))
-                queue.append((fx, fy))
+            # pared en alguno de los lados horizontales
+            blocked_h = (
+                (x - 1 < 0 or _sdata[_idx(x-1, y)] == '#') or
+                (x + 1 >= _ncols or _sdata[_idx(x+1, y)] == '#')
+            )
+            # pared en alguno de los lados verticales
+            blocked_v = (
+                (y - 1 < 0 or _sdata[_idx(x, y-1)] == '#') or
+                (y + 1 >= _nrows or _sdata[_idx(x, y+1)] == '#')
+            )
 
-    return {(x, y) for y in range(_nrows) for x in range(_ncols)
-            if _sdata[_idx(x, y)] != '#' and (x, y) not in reachable}
+            if blocked_h and blocked_v:
+                dead.add((x, y))
+
+    return dead
 
 
 def _is_freeze_deadlock(x, y, state, visited=None):
