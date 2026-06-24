@@ -108,7 +108,7 @@ def main():
     parser.add_argument("--save", action="store_true", help="Guarda resultados en resultados/run_history.json y .csv")
     parser.add_argument("--history", action="store_true", help="Muestra el historico de resultados guardados")
     parser.add_argument("--clear-history", action="store_true", help="Borra el historico de resultados guardados")
-    parser.add_argument("--timeout", type=int, default=30, help="Segundos maximos por algoritmo (default: 30)")
+    parser.add_argument("--timeout", type=int, default=180, help="Segundos maximos por algoritmo (default: 180)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Muestra progreso en vivo")
     args = parser.parse_args()
 

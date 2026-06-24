@@ -78,47 +78,34 @@ def _compute_dead_squares():
 
 
 def _is_freeze_deadlock(x, y, state, visited=None):
-    """
-    Detecta si la caja en (x,y) está congelada (no puede moverse
-    en ningún eje). Si está congelada fuera de un objetivo es
-    deadlock inmediato. Si está sobre un objetivo, revisa si las
-    cajas que la bloquean también están congeladas (deadlock en cadena).
-    """
-    if visited is None:
-        visited = set()
-    if (x, y) in visited:
+
+    if _sdata[_idx(x, y)] == '.':
         return False
-    visited.add((x, y))
 
-    on_goal = _sdata[_idx(x, y)] == '.'
-
-    blocked_h = any(
-        _sdata[_idx(x + dx, y)] == '#' or state[_idx(x + dx, y)] == '*'
-        for dx in [-1, 1] if 0 <= x + dx < _ncols
-    )
-    blocked_v = any(
-        _sdata[_idx(x, y + dy)] == '#' or state[_idx(x, y + dy)] == '*'
-        for dy in [-1, 1] if 0 <= y + dy < _nrows
+    left_wall = (
+        x - 1 < 0 or
+        _sdata[_idx(x - 1, y)] == '#'
     )
 
-    if not (blocked_h and blocked_v):
-        return False
-    if not on_goal:
-        return True
+    right_wall = (
+        x + 1 >= _ncols or
+        _sdata[_idx(x + 1, y)] == '#'
+    )
 
-    for dx in [-1, 1]:
-        nx = x + dx
-        if 0 <= nx < _ncols and state[_idx(nx, y)] == '*':
-            if _is_freeze_deadlock(nx, y, state, visited):
-                return True
-    for dy in [-1, 1]:
-        ny = y + dy
-        if 0 <= ny < _nrows and state[_idx(x, ny)] == '*':
-            if _is_freeze_deadlock(x, ny, state, visited):
-                return True
+    up_wall = (
+        y - 1 < 0 or
+        _sdata[_idx(x, y - 1)] == '#'
+    )
 
-    return False
+    down_wall = (
+        y + 1 >= _nrows or
+        _sdata[_idx(x, y + 1)] == '#'
+    )
 
+    blocked_h = left_wall and right_wall
+    blocked_v = up_wall and down_wall
+
+    return blocked_h and blocked_v
 
 def has_deadlock(state):
     """

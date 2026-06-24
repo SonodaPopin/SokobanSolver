@@ -101,7 +101,7 @@ def h_hungarian_manhattan(state):
 
 # ── Mejora propuesta: penalización por proximidad a deadlock ────
 
-DEADLOCK_PENALTY = 1000  # peso de la penalización
+DEADLOCK_PENALTY = 10  # peso de la penalización
 
 
 def _near_deadlock_penalty(boxes):
