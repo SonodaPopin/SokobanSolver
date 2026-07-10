@@ -109,6 +109,16 @@ def resolver_con_cnn(modelo, device="cpu"):
 
 
 def solve(modelo_path="cnn/modelo_bfs.pt", n_filtros=16):
-    """Wrapper con la misma interfaz que los demas solvers (solve())."""
+    """Wrapper generico con la misma interfaz que los demas solvers (solve())."""
     modelo = cargar(modelo_path, n_filtros=n_filtros)
     return resolver_con_cnn(modelo)
+
+
+def solve_cnn_bfs():
+    """CNN entrenada con datos generados por BFS."""
+    return solve(modelo_path="cnn/modelo_bfs.pt")
+
+
+def solve_cnn_astar():
+    """CNN entrenada con datos generados por A* (Hungaro+Manhattan+Deadlock)."""
+    return solve(modelo_path="cnn/modelo_astar.pt")

@@ -31,12 +31,18 @@ SOLVERS = {
     "A* Hung+Manh+DL": astar_hung_manh_dl,
 }
 
-# La CNN solo se agrega si hay un modelo entrenado guardado.
-# Entrenar con: python cnn/entrenar.py
-_modelo_cnn_path = os.path.join("cnn", "modelo_bfs.pt")
-if os.path.exists(_modelo_cnn_path):
-    from cnn.predecir import solve as cnn_solve
-    SOLVERS["CNN"] = cnn_solve
+# Cada CNN solo se agrega si hay un modelo entrenado guardado.
+# Entrenar ambos con: python cnn/entrenar.py
+_modelo_bfs_path = os.path.join("cnn", "modelo_bfs.pt")
+_modelo_astar_path = os.path.join("cnn", "modelo_astar.pt")
+
+if os.path.exists(_modelo_bfs_path):
+    from cnn.predecir import solve_cnn_bfs
+    SOLVERS["CNN-BFS"] = solve_cnn_bfs
+
+if os.path.exists(_modelo_astar_path):
+    from cnn.predecir import solve_cnn_astar
+    SOLVERS["CNN-A*"] = solve_cnn_astar
 
 LEVELS_DIR = "niveles"
 LEVEL_FILES = [os.path.join(LEVELS_DIR, f"level{i}.txt") for i in range(1, 26)]
@@ -108,7 +114,7 @@ def main():
     parser.add_argument("--save", action="store_true", help="Guarda resultados en resultados/run_history.json y .csv")
     parser.add_argument("--history", action="store_true", help="Muestra el historico de resultados guardados")
     parser.add_argument("--clear-history", action="store_true", help="Borra el historico de resultados guardados")
-    parser.add_argument("--timeout", type=int, default=180, help="Segundos maximos por algoritmo (default: 180)")
+    parser.add_argument("--timeout", type=int, default=30, help="Segundos maximos por algoritmo (default: 30)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Muestra progreso en vivo")
     args = parser.parse_args()
 

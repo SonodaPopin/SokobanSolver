@@ -99,17 +99,46 @@ def cargar_modelo(path, n_filtros=16, device="cpu"):
 if __name__ == "__main__":
     from cnn.generar_datos import generar_dataset, guardar_dataset
     from algoritmos.BFS import solve as bfs_solve
+    from algoritmos.AStar import solve_hungarian_manhattan_deadlock as astar_solve
 
-    niveles = [f"niveles/level{i}.txt" for i in range(1, 6)]
+    niveles = [f"niveles/level{i}.txt" for i in range(1, 26)]
     niveles = [n for n in niveles if os.path.exists(n)]
+    print(f"Niveles encontrados: {niveles}")
 
-    print("Generando dataset con BFS...")
-    X, y = generar_dataset(niveles, bfs_solve, aumentar=True)
-    print(f"Dataset: {len(y)} ejemplos")
+    configs = [
+        ("BFS",  bfs_solve,   "cnn/dataset_bfs.npz",   "cnn/modelo_bfs.pt"),
+        ("A*",   astar_solve, "cnn/dataset_astar.npz", "cnn/modelo_astar.pt"),
+    ]
 
-    if len(y) == 0:
-        print("No se generaron datos. Revisa los niveles y el solver.")
-    else:
-        guardar_dataset(X, y, "cnn/dataset_bfs.npz")
-        modelo, historial = entrenar(X, y, n_filtros=16, epochs=50)
-        guardar_modelo(modelo, "cnn/modelo_bfs.pt")
+    resultados = {}
+
+    for nombre, solver, dataset_path, modelo_path in configs:
+        print(f"\n{'='*50}")
+        print(f"  Generando dataset con {nombre}...")
+        print(f"{'='*50}")
+        X, y = generar_dataset(niveles, solver, aumentar=True)
+        print(f"Dataset {nombre}: {len(y)} ejemplos")
+
+        if len(y) == 0:
+            print(f"No se generaron datos con {nombre}. Se omite el entrenamiento.")
+            continue
+
+        guardar_dataset(X, y, dataset_path)
+
+        print(f"\nEntrenando CNN con datos de {nombre}...")
+        modelo, historial = entrenar(X, y, n_filtros=16, epochs=100)
+        guardar_modelo(modelo, modelo_path)
+
+        resultados[nombre] = {
+            "n_ejemplos": len(y),
+            "train_acc": historial["train_acc"][-1],
+            "test_acc": historial["test_acc"][-1],
+        }
+
+    print(f"\n{'='*50}")
+    print("  Resumen comparativo")
+    print(f"{'='*50}")
+    print(f"{'Modelo':<10} {'Ejemplos':>10} {'Train acc':>11} {'Test acc':>10}")
+    for nombre, r in resultados.items():
+        print(f"{nombre:<10} {r['n_ejemplos']:>10} {r['train_acc']:>11.3f} {r['test_acc']:>10.3f}")
+    print(f"\n{'Paper':<10} {'~10000':>10} {0.58:>11.3f} {0.45:>10.3f}")
