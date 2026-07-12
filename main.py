@@ -44,7 +44,7 @@ if os.path.exists(_modelo_astar_path):
     from cnn.predecir import solve_cnn_astar
     SOLVERS["CNN-A*"] = solve_cnn_astar
 
-LEVELS_DIR = "niveles"
+LEVELS_DIR = "niveles/paper"
 LEVEL_FILES = [os.path.join(LEVELS_DIR, f"level{i}.txt") for i in range(1, 26)]
 LEVEL_NUMBERS = list(range(1, 26))
 
