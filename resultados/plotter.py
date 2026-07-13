@@ -1,6 +1,7 @@
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -32,7 +33,7 @@ def plot_metric(y_column, y_label, output_file):
         data = df[df["algorithm"] == alg]
         plt.plot(
             data["level"],
-            data[y_column],
+            np.log(data[y_column]),
             marker="o",
             color=colors[i],
             label=alg
@@ -52,8 +53,8 @@ def plot_metric(y_column, y_label, output_file):
     plt.show()
 
 # Crear los tres gráficos
-plot_metric("time_ms", "Time (ms)", "level_vs_time.png")
-plot_metric("steps", "Steps", "level_vs_steps.png")
-plot_metric("states", "States", "level_vs_states.png")
+#plot_metric("time_ms", "Time (ms)", "level_vs_time.png")
+#plot_metric("steps", "Steps", "level_vs_steps.png")
+plot_metric("states", "Log(States)", "level_vs_Log(states).png")
 
 print("Gráficos creados correctamente.")

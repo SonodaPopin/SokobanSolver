@@ -30,7 +30,7 @@ def solve(heuristic_name="Hung. + Manh."):
     El tablero debe estar inicializado con tablero.init() antes de llamar.
 
     Parámetros:
-        heuristic_name : nombre de la heurística (ver optimizacion.heuristics.HEURISTICS)
+        heuristic_name : nombre de la heurística (ver optimizacion.heuristicas.HEURISTICAS)
 
     Retorna:
         (solution, states_explored)

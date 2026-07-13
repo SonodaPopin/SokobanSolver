@@ -218,14 +218,14 @@ if __name__ == "__main__":
     from algoritmos.AStar import solve_hungarian_manhattan_deadlock as astar_solve
 
     niveles_paper    = sorted(glob.glob("niveles/paper/level*.txt"))
-    niveles_microban = sorted(glob.glob("niveles/microban/level*.txt"))
-    niveles_todos    = niveles_paper + niveles_microban
+    #niveles_microban = sorted(glob.glob("niveles/microban/level*.txt"))
+    #niveles_todos    = niveles_paper + niveles_microban
 
     print(f"Niveles del paper:  {len(niveles_paper)}")
-    print(f"Niveles Microban:   {len(niveles_microban)}")
-    print(f"Total:              {len(niveles_todos)}")
+    #print(f"Niveles Microban:   {len(niveles_microban)}")
+    #print(f"Total:              {len(niveles_todos)}")
 
-    if not niveles_todos:
+    if not niveles_paper:
         print("No se encontraron niveles en la carpeta 'niveles/'.")
         sys.exit(1)
 
@@ -241,7 +241,7 @@ if __name__ == "__main__":
         print(f"  {nombre}: generando dataset...")
         print(f"{'='*55}")
 
-        X, y = generar_dataset(niveles_todos, solver, aumentar=True, verbose=True)
+        X, y = generar_dataset(niveles_paper, solver, aumentar=True, verbose=True)
 
         if len(y) == 0:
             print("Dataset vacio, se omite.")

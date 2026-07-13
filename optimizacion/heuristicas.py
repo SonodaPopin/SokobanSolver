@@ -17,9 +17,9 @@ Mejora propuesta (no está en el paper):
          el deadlock ocurra.
 
 Uso:
-    from optimizacion.heuristics import HEURISTICS
+    from optimizacion.heuristicas import HEURISTICAS
 
-    h = HEURISTICS["hungarian_manhattan_deadlock"](state)
+    h = HEURISTICAS["hungarian_manhattan_deadlock"](state)
 """
 
 import math

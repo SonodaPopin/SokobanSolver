@@ -19,7 +19,7 @@ import tablero
 BOARD_SIZE = 32
 ACTIONS = ['U', 'R', 'D', 'L']
 ACTION_TO_IDX = {a: i for i, a in enumerate(ACTIONS)}
-TIMEOUT_POR_NIVEL = 30  # segundos maximos por nivel al generar datos
+TIMEOUT_POR_NIVEL = 180  # segundos maximos por nivel al generar datos
 
 
 def estado_a_matriz(state, sdata, nrows, ncols):
@@ -55,19 +55,44 @@ def _reflejar(matriz):
 
 ROTACION_ACCION = {'U': 'R', 'R': 'D', 'D': 'L', 'L': 'U'}
 REFLEJO_ACCION  = {'U': 'U', 'D': 'D', 'L': 'R', 'R': 'L'}
+RUIDO_STD = 0.05  # desviacion estandar del ruido gaussiano para aumento x16
+
+
+def _agregar_ruido(matriz):
+    """
+    Agrega ruido gaussiano a la matriz y recorta los valores a [0, 1].
+    El tablero sigue siendo reconocible pero cada version es distinta,
+    haciendo al modelo mas robusto a pequeñas variaciones.
+    """
+    ruido = np.random.normal(0, RUIDO_STD, matriz.shape).astype(np.float32)
+    return np.clip(matriz + ruido, 0.0, 1.0)
 
 
 def aumentar_pares(pares):
-    """Aplica rotaciones y reflexion a los pares, multiplicando x8."""
+    """
+    Aplica rotaciones, reflexion y ruido gaussiano a los pares.
+    Resultado: x8 (geometrico) x2 (con/sin ruido) = x16 total.
+
+    Las 16 versiones por par son:
+      - 4 rotaciones (0, 90, 180, 270 grados)
+      - cada una con reflexion horizontal
+      - cada una de las 8 anteriores con ruido gaussiano agregado
+    """
     aumentados = []
     for matriz, accion_idx in pares:
         accion = ACTIONS[accion_idx]
         m, a = matriz, accion
         for _ in range(4):
+            # Version sin ruido
             aumentados.append((m, ACTION_TO_IDX[a]))
             m_ref = _reflejar(m)
             a_ref = REFLEJO_ACCION[a]
             aumentados.append((m_ref, ACTION_TO_IDX[a_ref]))
+
+            # Version con ruido (misma accion, tablero ligeramente perturbado)
+            aumentados.append((_agregar_ruido(m), ACTION_TO_IDX[a]))
+            aumentados.append((_agregar_ruido(m_ref), ACTION_TO_IDX[a_ref]))
+
             m = _rotar_90(m)
             a = ROTACION_ACCION[a]
     return aumentados
@@ -151,7 +176,7 @@ def generar_dataset(level_paths, solver_fn, aumentar=True, verbose=True):
     for i, path in enumerate(level_paths):
         nombre = os.path.basename(path)
         t0 = time.time()
-        print(f"Procesando {nombre}...", flush=True)
+
         pares = solucion_a_pares(path, solver_fn, timeout=TIMEOUT_POR_NIVEL)
 
         if not pares:
