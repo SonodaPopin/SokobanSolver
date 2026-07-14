@@ -1,4 +1,3 @@
-# optimizacion/deadlocks.py
 # Modulo de deteccion de deadlocks para Sokoban.
 #
 # Implementa tres chequeos, de mas barato a mas caro:
@@ -18,16 +17,18 @@ _sdata = ""
 _nrows = 0
 _ncols = 0
 _dead_squares = set()
-_dead_lines = set()
+
+ENABLE_LINE_DEADLOCK = True
 
 
-def init_deadlocks(sdata, nrows, ncols):
-    global _sdata, _nrows, _ncols, _dead_squares, _dead_lines
+def init_deadlocks(sdata, nrows, ncols, enable_line_deadlock=ENABLE_LINE_DEADLOCK):
+    global _sdata, _nrows, _ncols, _dead_squares
     _sdata = sdata
     _nrows = nrows
     _ncols = ncols
     _dead_squares = _compute_corner_deadsquares()
-    _dead_lines = _compute_dead_lines()
+    if enable_line_deadlock:
+        _dead_squares |= _compute_dead_lines()
 
 
 def _idx(x, y):
@@ -58,122 +59,184 @@ def _compute_corner_deadsquares():
             if _es_pared(x, y) or _es_objetivo(x, y):
                 continue
 
-            wall_l = _es_pared(x-1, y)
-            wall_r = _es_pared(x+1, y)
-            wall_u = _es_pared(x, y-1)
-            wall_d = _es_pared(x, y+1)
+            wall_l = _es_pared(x - 1, y)
+            wall_r = _es_pared(x + 1, y)
+            wall_u = _es_pared(x, y - 1)
+            wall_d = _es_pared(x, y + 1)
 
             if (wall_l or wall_r) and (wall_u or wall_d):
                 dead.add((x, y))
 
     return dead
 
+def _scan_line_runs(length, is_wall_at, is_touching_wall, is_goal_at):
+    """
+    Escanea una linea (una fila o una columna) buscando tramos donde:
+      - ninguna celda es pared
+      - TODAS las celdas tocan la misma pared perpendicular
+        (ej: pared arriba en todo el tramo, para una fila)
+      - el tramo esta acotado por pared real en AMBOS extremos
+      - no hay ningun objetivo en el tramo
+
+    Retorna una lista de tramos (cada uno, lista de indices) que
+    cumplen las 4 condiciones -> cualquier caja ahi es deadlock.
+    """
+    runs = []
+    i = 0
+    while i < length:
+        if is_wall_at(i):
+            i += 1
+            continue
+
+        run = []
+        while i < length and not is_wall_at(i) and is_touching_wall(i):
+            run.append(i)
+            i += 1
+
+        if run:
+            end = run[-1]
+            start = run[0]
+            # is_wall_at ya trata fuera-de-rango como pared
+            left_bound  = is_wall_at(start - 1)
+            right_bound = is_wall_at(end + 1)
+            has_goal = any(is_goal_at(j) for j in run)
+            if left_bound and right_bound and not has_goal:
+                runs.append(run)
+        else:
+            i += 1
+
+    return runs
+
 
 def _compute_dead_lines():
-    """
-    Deteccion de lineas muertas desactivada temporalmente.
-    La logica de tramos pegados a pared genera falsos positivos
-    en celdas aisladas entre dos paredes laterales que en realidad
-    son transitables verticalmente (o viceversa). Requiere una
-    reformulacion mas cuidadosa para distinguir un pasillo real
-    de una celda con paredes incidentales en ambos lados.
-    """
-    return set()
+    dead = set()
+    # Tramos horizontales: pared arriba o abajo
+    for wall_side in ('u', 'd'):
+        for y in range(_nrows):
+            def is_wall_at(x, y=y):
+                return _es_pared(x, y)
+
+            def is_touching(x, y=y, side=wall_side):
+                return _es_pared(x, y - 1) if side == 'u' else _es_pared(x, y + 1)
+
+            def is_goal_at(x, y=y):
+                return _es_objetivo(x, y)
+
+            for run in _scan_line_runs(_ncols, is_wall_at, is_touching, is_goal_at):
+                dead.update((x, y) for x in run)
+
+    # Tramos verticales: pared a la izquierda o derecha 
+    for wall_side in ('l', 'r'):
+        for x in range(_ncols):
+            def is_wall_at(y, x=x):
+                return _es_pared(x, y)
+
+            def is_touching(y, x=x, side=wall_side):
+                return _es_pared(x - 1, y) if side == 'l' else _es_pared(x + 1, y)
+
+            def is_goal_at(y, x=x):
+                return _es_objetivo(x, y)
+
+            for run in _scan_line_runs(_nrows, is_wall_at, is_touching, is_goal_at):
+                dead.update((x, y) for y in run)
+
+    return dead
+
+def _hay_caja(x, y, state):
+    return 0 <= x < _ncols and 0 <= y < _nrows and state[_idx(x, y)] == '*'
 
 
-def _puede_ser_empujada(bx, by, dx, dy, state):
-    """
-    Verifica si la caja en (bx,by) puede ser empujada en direccion
-    (dx,dy): el destino debe estar libre y el lado opuesto (donde
-    se para el jugador) tambien debe estar libre.
-    """
-    tx, ty = bx + dx, by + dy
-    jx, jy = bx - dx, by - dy
-
-    if _es_pared(tx, ty):
-        return False
-    if 0 <= tx < _ncols and 0 <= ty < _nrows and state[_idx(tx, ty)] == '*':
-        return False
-    if _es_pared(jx, jy):
-        return False
-    if 0 <= jx < _ncols and 0 <= jy < _nrows and state[_idx(jx, jy)] == '*':
-        return False
-    return True
-
-
-def _is_freeze_deadlock(bx, by, state, visited=None):
-    """
-    Una caja esta bloqueada si no puede ser empujada en ninguna
-    direccion en este instante. Eso solo es un deadlock PERMANENTE
-    si las cajas que la bloquean tambien estan bloqueadas de forma
-    permanente (si alguna vecina bloqueante SI puede moverse,
-    el bloqueo actual es temporal y no es deadlock).
-    """
-    if visited is None:
-        visited = set()
-    if (bx, by) in visited:
-        # ciclo de cajas bloqueandose mutuamente sin salida: deadlock
+def _pared_o_congelada(nx, ny, state, memo_x, memo_y, en_curso):
+    # comprueba si es una pared o es una caja permanentemente bloqueada
+    if _es_pared(nx, ny):
         return True
-    visited.add((bx, by))
+    if _hay_caja(nx, ny, state):
+        bloqueada_h = _bloqueada_x(nx, ny, state, memo_x, memo_y, en_curso)
+        bloqueada_v = _bloqueada_y(nx, ny, state, memo_x, memo_y, en_curso)
+        return bloqueada_h and bloqueada_v
+    return False
 
-    puede_moverse = (
-        _puede_ser_empujada(bx, by, 1, 0, state) or
-        _puede_ser_empujada(bx, by, -1, 0, state) or
-        _puede_ser_empujada(bx, by, 0, 1, state) or
-        _puede_ser_empujada(bx, by, 0, -1, state)
+
+def _bloqueada_x(bx, by, state, memo_x, memo_y, en_curso):
+    key = (bx, by)
+    if key in memo_x:
+        return memo_x[key]
+
+    stack_key = (bx, by, 'x')
+    if stack_key in en_curso:
+        # Para evitar dependencia ciclica asume bloqueada
+        return True
+
+    en_curso.add(stack_key)
+    resultado = (
+        _pared_o_congelada(bx - 1, by, state, memo_x, memo_y, en_curso) or
+        _pared_o_congelada(bx + 1, by, state, memo_x, memo_y, en_curso)
     )
+    en_curso.discard(stack_key)
+    memo_x[key] = resultado
+    return resultado
 
-    if puede_moverse:
-        return False
 
-    # bloqueada en este instante: identificar que la bloquea en cada eje
-    # y revisar si esas cajas bloqueantes pueden moverse (liberandola)
-    bloqueantes = []
-    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-        nx, ny = bx + dx, by + dy
-        if 0 <= nx < _ncols and 0 <= ny < _nrows and state[_idx(nx, ny)] == '*':
-            bloqueantes.append((nx, ny))
+def _bloqueada_y(bx, by, state, memo_x, memo_y, en_curso):
+    key = (bx, by)
+    if key in memo_y:
+        return memo_y[key]
 
-    if not bloqueantes:
-        # bloqueada solo por paredes/bordes, sin cajas vecinas de por
-        # medio: nunca podra moverse, es deadlock permanente
+    stack_key = (bx, by, 'y')
+    if stack_key in en_curso:
+        # Para evitar dependencia ciclica asume bloqueada
         return True
 
-    # si CUALQUIER caja bloqueante puede liberar el bloqueo (no esta
-    # ella misma congelada), entonces este bloqueo es temporal
-    for nx, ny in bloqueantes:
-        if not _is_freeze_deadlock(nx, ny, state, visited):
-            return False
+    en_curso.add(stack_key)
+    resultado = (
+        _pared_o_congelada(bx, by - 1, state, memo_x, memo_y, en_curso) or
+        _pared_o_congelada(bx, by + 1, state, memo_x, memo_y, en_curso)
+    )
+    en_curso.discard(stack_key)
+    memo_y[key] = resultado
+    return resultado
 
-    # todas las cajas bloqueantes estan tambien permanentemente congeladas
-    return True
+
+def _hay_freeze_deadlock(state, cajas):
+    """
+    Revisa si alguna caja que NO esta sobre un objetivo quedo
+    bloqueada en ambos ejes de forma permanente.
+    """
+    if not cajas:
+        return False
+
+    memo_x, memo_y = {}, {}
+    for bx, by in cajas:
+        if _es_objetivo(bx, by):
+            continue
+        en_curso = set()
+        if (_bloqueada_x(bx, by, state, memo_x, memo_y, en_curso) and
+                _bloqueada_y(bx, by, state, memo_x, memo_y, en_curso)):
+            return True
+    return False
 
 
 def has_deadlock(state):
     """
     Retorna True si el estado tiene algun deadlock detectado.
 
-    Solo se usa deteccion de esquinas (la mas confiable y sin falsos
-    positivos: una caja en una esquina real, sin objetivo, nunca puede
-    salir de ahi sin importar el resto del tablero).
-
-    El freeze deadlock y las lineas muertas quedaron desactivados:
-    en las pruebas generaban falsos positivos en estados intermedios
-    validos (p. ej. una caja momentaneamente bloqueada por otra caja
-    que se puede mover despues), lo que hacia fallar niveles que si
-    tenian solucion. Detectar correctamente esos casos requeriria
-    verificar dependencias dinamicas entre cajas, que es esencialmente
-    parte de lo que hace dificil resolver Sokoban en primer lugar.
+    1. Esquinas simples + lineas muertas contra pared (baratas,
+    precomputadas al cargar el nivel.
+    2. Freeze deadlock por ejes (mas caro):
+    solo usa pared y el estado de otras cajas.
     """
+    cajas = []
     for i, ch in enumerate(state):
         if ch != '*':
             continue
         x, y = i % _ncols, i // _ncols
         if (x, y) in _dead_squares:
             return True
-    return False
+        cajas.append((x, y))
+
+    return _hay_freeze_deadlock(state, cajas)
 
 
 def get_dead_squares():
-    """Retorna el conjunto combinado de esquinas y lineas muertas (para debug/visualizacion)."""
-    return frozenset(_dead_squares | _dead_lines)
+    """Retorna el conjunto de esquinas/lineas muertas (para debug/visualizacion)."""
+    return frozenset(_dead_squares)

@@ -19,6 +19,8 @@ from algoritmos.AStar import (
     solve_hungarian_manhattan_deadlock as astar_hung_manh_dl,
 )
 
+from optimizacion.deadlocks import init_deadlocks, get_dead_squares
+
 SOLVERS = {
     "BFS": bfs_solve,
     "DFS": dfs_solve,
@@ -105,6 +107,45 @@ def show_history():
         print(f"{ts:<20} {alg:<12} {lvl:<20} {solved:<9} {t:>11.1f} {s:>10} {p:>7}")
     print(f"\nTotal de runs guardados: {len(data)}")
 
+def show_deadlocks():
+    available = [l for l in LEVEL_FILES if os.path.exists(l)]
+
+    if not available:
+        print("No se encontraron niveles.")
+        return
+
+    for level in available:
+        print("\n" + "=" * 70)
+        print(os.path.basename(level))
+        print("=" * 70)
+
+        tablero.init(level)
+        init_deadlocks(tablero.sdata, tablero.nrows, tablero.ncols)
+
+        dead = get_dead_squares()
+
+        for y in range(tablero.nrows):
+            fila = ""
+
+            for x in range(tablero.ncols):
+                i = tablero.idx(x, y)
+                s = tablero.sdata[i]
+                d = tablero.ddata[i]
+
+                if s == '#':
+                    fila += '#'
+                elif d == '@':
+                    fila += '+' if s == '.' else '@'
+                elif d == '*':
+                    fila += '*' if s == '.' else '$'
+                elif (x, y) in dead:
+                    fila += 'X'
+                elif s == '.':
+                    fila += '.'
+                else:
+                    fila += ' '
+
+            print(fila)
 
 def main():
     parser = argparse.ArgumentParser(description="Sokoban Solver")
@@ -116,12 +157,16 @@ def main():
     parser.add_argument("--clear-history", action="store_true", help="Borra el historico de resultados guardados")
     parser.add_argument("--timeout", type=int, default=30, help="Segundos maximos por algoritmo (default: 30)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Muestra progreso en vivo")
+    parser.add_argument("--deadlockdebug",action="store_true", help="Muestra todos los niveles con los cuadros muertos marcados."
+)
     args = parser.parse_args()
 
     if args.clear_history:
         clear_results()
-    elif args.history:
+    elif args.history:    
         show_history()
+    elif args.deadlockdebug:
+        show_deadlocks()        
     elif args.compare:
         run_compare(save=args.save, timeout=args.timeout, verbose=args.verbose)
     elif args.level:
