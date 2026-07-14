@@ -36,7 +36,7 @@ def configurar_gpu():
     return device
 
 
-def entrenar(X, y, n_filtros=16, epochs=100, batch_size=64, lr=0.001,
+def entrenar(X, y, epochs=100, batch_size=64, lr=0.0005,
              val_split=0.1, test_split=0.1, device=None, verbose=True):
     """
     Entrena la CNN con split train/val/test.
@@ -91,13 +91,14 @@ def entrenar(X, y, n_filtros=16, epochs=100, batch_size=64, lr=0.001,
                               batch_size=batch_size, shuffle=False,
                               pin_memory=pin, num_workers=0)
 
-    modelo = crear_modelo(n_filtros=n_filtros, device=device)
+    modelo = crear_modelo(device=device)
     optimizer = torch.optim.Adam(modelo.parameters(), lr=lr, weight_decay=1e-4)
     criterio  = nn.CrossEntropyLoss()
 
     historial = {"train_acc": [], "val_acc": []}
     mejor_val_acc = 0
     mejor_epoch   = 0
+    mejor_estado = None
 
     for epoch in range(epochs):
         # Entrenamiento
@@ -130,7 +131,13 @@ def entrenar(X, y, n_filtros=16, epochs=100, batch_size=64, lr=0.001,
 
         if val_acc > mejor_val_acc:
             mejor_val_acc = val_acc
-            mejor_epoch   = epoch + 1
+            mejor_epoch = epoch + 1
+
+            # Guardar copia de los pesos de esta época
+            mejor_estado = {
+                k: v.cpu().clone()
+                for k, v in modelo.state_dict().items()
+    }
 
         if device == "cuda":
             torch.cuda.empty_cache()
@@ -138,7 +145,15 @@ def entrenar(X, y, n_filtros=16, epochs=100, batch_size=64, lr=0.001,
         if verbose and (epoch % 10 == 0 or epoch == epochs - 1):
             print(f"Epoch {epoch+1:3d}/{epochs}  "
                   f"train={train_acc:.3f}  val={val_acc:.3f}")
+            
+    # Restaurar el mejor modelo segun validacion
+    if mejor_estado is not None:
+        modelo.load_state_dict(mejor_estado)
+        modelo.to(device)
 
+    print(f"Modelo restaurado desde epoch {mejor_epoch} "
+        f"con val_acc={mejor_val_acc:.3f}")
+    
     # Test — se evalua UNA SOLA VEZ aqui, al terminar el entrenamiento
     print(f"\nEvaluando en conjunto de TEST (primera y unica vez)...")
     modelo.eval()
@@ -160,7 +175,7 @@ def entrenar(X, y, n_filtros=16, epochs=100, batch_size=64, lr=0.001,
     return modelo, historial, test_acc
 
 
-def validar_en_niveles(modelo_path, level_paths, n_filtros=16, device="cpu"):
+def validar_en_niveles(modelo_path, level_paths, device="cuda"):
     """
     Prueba el modelo resolviendo niveles reales completos.
     Esta es la metrica mas importante en la practica:
@@ -173,7 +188,7 @@ def validar_en_niveles(modelo_path, level_paths, n_filtros=16, device="cpu"):
         print(f"No se encontro el modelo en {modelo_path}")
         return 0, 0
 
-    modelo = cargar(modelo_path, n_filtros=n_filtros, device=device)
+    modelo = cargar(modelo_path, device=device)
     resueltos = []
     fallidos   = []
 
@@ -206,8 +221,8 @@ def guardar_modelo(modelo, path):
     print(f"Modelo guardado en {path}")
 
 
-def cargar_modelo(path, n_filtros=16, device="cpu"):
-    modelo = crear_modelo(n_filtros=n_filtros, device=device)
+def cargar_modelo(path, device="cuda"):
+    modelo = crear_modelo(device=device)
     modelo.load_state_dict(torch.load(path, map_location=device))
     modelo.eval()
     return modelo
@@ -218,12 +233,12 @@ if __name__ == "__main__":
     from algoritmos.AStar import solve_hungarian_manhattan_deadlock as astar_solve
 
     niveles_paper    = sorted(glob.glob("niveles/paper/level*.txt"))
-    #niveles_microban = sorted(glob.glob("niveles/microban/level*.txt"))
-    #niveles_todos    = niveles_paper + niveles_microban
+    niveles_microban = sorted(glob.glob("niveles/microban/level*.txt"))
+    niveles_todos    = niveles_paper + niveles_microban
 
     print(f"Niveles del paper:  {len(niveles_paper)}")
-    #print(f"Niveles Microban:   {len(niveles_microban)}")
-    #print(f"Total:              {len(niveles_todos)}")
+    print(f"Niveles Microban:   {len(niveles_microban)}")
+    print(f"Total:              {len(niveles_todos)}")
 
     if not niveles_paper:
         print("No se encontraron niveles en la carpeta 'niveles/'.")
@@ -241,7 +256,7 @@ if __name__ == "__main__":
         print(f"  {nombre}: generando dataset...")
         print(f"{'='*55}")
 
-        X, y = generar_dataset(niveles_paper, solver, aumentar=True, verbose=True)
+        X, y = generar_dataset(niveles_todos, solver, aumentar=True, verbose=True)
 
         if len(y) == 0:
             print("Dataset vacio, se omite.")
@@ -251,13 +266,13 @@ if __name__ == "__main__":
 
         print(f"\nEntrenando CNN-{nombre}...")
         modelo, historial, test_acc = entrenar(
-            X, y, n_filtros=16, epochs=100, batch_size=64, lr=0.001
+            X, y, epochs=100, batch_size=64, lr=0.0005
         )
         guardar_modelo(modelo, modelo_path)
 
         # Validacion en niveles reales (solo niveles del paper)
         resueltos, total_niveles = validar_en_niveles(
-            modelo_path, niveles_paper, n_filtros=16, device="cpu"
+            modelo_path, niveles_paper, device=configurar_gpu()
         )
 
         resultados[nombre] = {
@@ -281,7 +296,5 @@ if __name__ == "__main__":
         print(f"{nombre:<8} {r['n_ejemplos']:>10} "
               f"{r['train_acc']:>7.3f} {r['val_acc']:>7.3f} "
               f"{r['test_acc']:>7.3f} {niveles_str:>10}")
-    print(f"\n{'Paper':<8} {'~1M':>10} {'0.580':>7} "
-          f"{'N/A':>7} {'0.450':>7} {'N/A':>10}")
     print(f"\nNota: val_acc se monitorea durante el entrenamiento.")
     print(f"      test_acc se evalua una sola vez al terminar (numero definitivo).")

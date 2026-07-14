@@ -53,7 +53,7 @@ def _reflejar(matriz):
     return np.array([np.fliplr(c) for c in matriz])
 
 
-ROTACION_ACCION = {'U': 'R', 'R': 'D', 'D': 'L', 'L': 'U'}
+ROTACION_ACCION = {'U': 'L', 'L': 'D', 'D': 'R', 'R': 'U'}
 REFLEJO_ACCION  = {'U': 'U', 'D': 'D', 'L': 'R', 'R': 'L'}
 RUIDO_STD = 0.05  # desviacion estandar del ruido gaussiano para aumento x16
 

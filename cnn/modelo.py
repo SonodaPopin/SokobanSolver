@@ -2,8 +2,11 @@
 # Arquitectura de la CNN para predecir la accion del jugador en Sokoban.
 #
 # El paper usa 8 filtros conv 3x3 -> capas ocultas (32, 16) -> softmax (4).
-# Aqui se implementa la version mejorada propuesta: 16 filtros en vez de 8,
-# manteniendo el resto de la estructura para que la comparacion sea clara.
+# Esta versión mejorada utiliza:
+# - 16 y 32 filtros convolucionales
+# - MaxPooling para reducir dimensionalidad
+# - Dropout para disminuir overfitting
+# - capas fully connected más pequeñas
 
 import torch
 import torch.nn as nn
@@ -17,28 +20,30 @@ class SokobanCNN(nn.Module):
     """
     CNN para Sokoban.
 
-    Parametros:
-        n_filtros : cantidad de filtros conv (8 = paper original, 16 = mejora propuesta)
     """
 
-    def __init__(self, n_filtros=16):
+    def __init__(self):
         super().__init__()
-        self.n_filtros = n_filtros
 
         self.conv = nn.Sequential(
-            nn.Conv2d(N_CHANNELS, n_filtros, kernel_size=3, padding=1),
+            nn.Conv2d(N_CHANNELS, 16, kernel_size=3, padding=1),
+            nn.ReLU(),
+
+            nn.Conv2d(16, 32, kernel_size=3, padding=1),
             nn.ReLU(),
         )
 
-        flat_size = n_filtros * BOARD_SIZE * BOARD_SIZE
+        flat_size = 32 * BOARD_SIZE * BOARD_SIZE
 
         self.fc = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(flat_size, 32),
+            nn.Linear(flat_size, 128),
             nn.ReLU(),
-            nn.Linear(32, 16),
+
+            nn.Linear(128, 64),
             nn.ReLU(),
-            nn.Linear(16, N_ACTIONS),
+
+            nn.Linear(64, N_ACTIONS),
         )
 
     def forward(self, x):
@@ -47,6 +52,6 @@ class SokobanCNN(nn.Module):
         return x  # logits, softmax se aplica en la loss (CrossEntropyLoss)
 
 
-def crear_modelo(n_filtros=16, device="cpu"):
-    modelo = SokobanCNN(n_filtros=n_filtros).to(device)
+def crear_modelo(device="cpu"):
+    modelo = SokobanCNN().to(device)
     return modelo

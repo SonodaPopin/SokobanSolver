@@ -20,14 +20,14 @@ from cnn.modelo import crear_modelo
 MAX_PASOS = 300  # limite de movimientos antes de declarar fallo
 
 
-def cargar(path, n_filtros=16, device="cpu"):
-    modelo = crear_modelo(n_filtros=n_filtros, device=device)
+def cargar(path, device="cuda"):
+    modelo = crear_modelo(device=device)
     modelo.load_state_dict(torch.load(path, map_location=device))
     modelo.eval()
     return modelo
 
 
-def resolver_con_cnn(modelo, device="cpu"):
+def resolver_con_cnn(modelo, device="cuda"):
     """
     Resuelve el nivel actualmente cargado en tablero.py usando la CNN.
     El tablero debe estar inicializado con tablero.init() antes de llamar.
@@ -108,9 +108,9 @@ def resolver_con_cnn(modelo, device="cpu"):
     return "No solution", len(visitados)
 
 
-def solve(modelo_path="cnn/modelo_bfs.pt", n_filtros=16):
+def solve(modelo_path="cnn/modelo_bfs.pt"):
     """Wrapper generico con la misma interfaz que los demas solvers (solve())."""
-    modelo = cargar(modelo_path, n_filtros=n_filtros)
+    modelo = cargar(modelo_path)
     return resolver_con_cnn(modelo)
 
 
