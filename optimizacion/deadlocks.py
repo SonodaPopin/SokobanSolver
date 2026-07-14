@@ -18,17 +18,13 @@ _nrows = 0
 _ncols = 0
 _dead_squares = set()
 
-ENABLE_LINE_DEADLOCK = True
-
-
-def init_deadlocks(sdata, nrows, ncols, enable_line_deadlock=ENABLE_LINE_DEADLOCK):
+def init_deadlocks(sdata, nrows, ncols):
     global _sdata, _nrows, _ncols, _dead_squares
     _sdata = sdata
     _nrows = nrows
     _ncols = ncols
     _dead_squares = _compute_corner_deadsquares()
-    if enable_line_deadlock:
-        _dead_squares |= _compute_dead_lines()
+    _dead_squares |= _compute_dead_lines()
 
 
 def _idx(x, y):
@@ -96,7 +92,6 @@ def _scan_line_runs(length, is_wall_at, is_touching_wall, is_goal_at):
         if run:
             end = run[-1]
             start = run[0]
-            # is_wall_at ya trata fuera-de-rango como pared
             left_bound  = is_wall_at(start - 1)
             right_bound = is_wall_at(end + 1)
             has_goal = any(is_goal_at(j) for j in run)
@@ -164,7 +159,6 @@ def _bloqueada_x(bx, by, state, memo_x, memo_y, en_curso):
 
     stack_key = (bx, by, 'x')
     if stack_key in en_curso:
-        # Para evitar dependencia ciclica asume bloqueada
         return True
 
     en_curso.add(stack_key)
@@ -184,7 +178,6 @@ def _bloqueada_y(bx, by, state, memo_x, memo_y, en_curso):
 
     stack_key = (bx, by, 'y')
     if stack_key in en_curso:
-        # Para evitar dependencia ciclica asume bloqueada
         return True
 
     en_curso.add(stack_key)
@@ -210,8 +203,7 @@ def _hay_freeze_deadlock(state, cajas):
         if _es_objetivo(bx, by):
             continue
         en_curso = set()
-        if (_bloqueada_x(bx, by, state, memo_x, memo_y, en_curso) and
-                _bloqueada_y(bx, by, state, memo_x, memo_y, en_curso)):
+        if (_bloqueada_x(bx, by, state, memo_x, memo_y, en_curso) and _bloqueada_y(bx, by, state, memo_x, memo_y, en_curso)):
             return True
     return False
 

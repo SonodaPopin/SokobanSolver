@@ -7,7 +7,7 @@ Proyecto de IA que implementa y compara distintos algoritmos para resolver el ju
 Sokoban es un juego de puzzles donde el jugador debe empujar cajas hasta posiciones objetivo dentro de un tablero con paredes. Es un problema NP-Hard y PSPACE-Completo, lo que lo hace ideal para evaluar y comparar distintas estrategias de búsqueda en IA.
 
 Este proyecto replica los algoritmos del paper original y propone mejoras propias:
-- Detección de deadlocks por esquinas (Dead Square)
+- Detección de deadlocks por esquinas, líneas muertas y freeze deadlock
 - Heurística A* con penalización por deadlocks
 - CNN entrenada con BFS y con A* para comparación
 
@@ -38,7 +38,7 @@ SokobanSolver/
 │
 ├── optimizacion/
 │   ├── hashing.py             # Tabla hash de estados visitados
-│   ├── deadlocks.py           # Detección de deadlocks (esquinas + freeze)
+│   ├── deadlocks.py           # Detección de deadlocks (esquinas + líneas muertas + freeze)
 │   ├── heuristicas.py         # Heurísticas para A*
 │   ├── hungarian.py           # Algoritmo húngaro para asignación óptima
 │   └── tunnelMacros.py        # Tunnel macros (implementado, no integrado aún)
@@ -67,7 +67,7 @@ SokobanSolver/
 ### Correr un nivel específico
 
 ```bash
-python main.py --level niveles/level1.txt --level-number 1
+python main.py --level niveles/paper/level1.txt --level-number 1
 ```
 
 ### Comparar todos los algoritmos en todos los niveles
@@ -106,6 +106,11 @@ python main.py --history
 python main.py --clear-history
 ```
 
+### Prueba de dead squares en niveles (para propositos de debug)
+
+```bash
+python main.py --deadlockdebug
+```
 ---
 
 ## Algoritmos implementados
@@ -130,9 +135,13 @@ python main.py --clear-history
 
 **Hashing de estados**: todos los algoritmos usan un set de estados visitados para evitar reexplorar configuraciones ya vistas.
 
-**Detección de deadlocks (mejora sobre el paper)**: el código original del paper (`Level.py`) tiene `isFailure()` que siempre retorna `False` — es decir, no implementa ninguna detección de deadlocks. Este proyecto agrega:
-- **Dead Square**: esquinas absolutas donde una caja nunca puede salir (pared en al menos un lado horizontal y un lado vertical, sin ser objetivo).
-- Esto reduce entre 49% y 82% los estados explorados según el nivel.
+**Detección de deadlocks (mejora sobre el paper)**: el código original del paper (`Level.py`) tiene `isFailure()` que siempre retorna `False` — es decir, no implementa ninguna detección de deadlocks. Este proyecto agrega tres chequeos, de más barato a más caro, en `optimizacion/deadlocks.py`:
+
+- **Esquinas simples (Dead Square)**: una caja que no está sobre un objetivo y tiene pared en al menos un lado horizontal *y* un lado vertical queda atrapada para siempre. Se precalcula una sola vez al cargar el nivel.
+- **Líneas muertas**: si una caja está pegada a una pared y todo el tramo continuo de esa pared (acotado por pared real en ambos extremos) no contiene ningún objetivo, cualquier caja en ese tramo es deadlock. También se precalcula al cargar el nivel, junto con las esquinas simples.
+- **Freeze deadlock**: chequeo dinámico (por estado) que detecta cuándo una caja fuera de un objetivo queda "congelada" porque no puede ser empujada en ningún eje — considerando también cajas vecinas que se bloquean mutuamente. Usa memoización y detección de ciclos para evitar dependencias circulares entre cajas.
+
+Las esquinas simples y las líneas muertas se combinan en un solo conjunto de "dead squares" precomputado (`_dead_squares`), consultado con costo O(1) por caja en cada estado nuevo; el freeze deadlock se evalúa aparte porque depende de la configuración completa de cajas en cada estado.
 
 ---
 
